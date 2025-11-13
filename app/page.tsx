@@ -1,77 +1,272 @@
 "use client";
-
-import { FormEvent, useState } from "react";
-import { explainCode } from "./actions";
+import { AdvancedFilters } from "@/components/filters/advanced-filters";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { ExplanationRequest, ExplanationResponse, FilterState } from "@/types";
+import { useState } from "react";
 
 export default function Home() {
   const [code, setCode] = useState("");
   const [explanation, setExplanation] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [language, setLanguage] = useState("english");
+  const [explanationStyle, setExplanationStyle] = useState("detailed");
+  const [includeExamples, setIncludeExamples] = useState(true);
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!code.trim()) {
-      setExplanation("Please paste a code snippet to explain.");
-      return;
-    }
+  const [filters, setFilters] = useState<FilterState>({
+    programmingLanguage: "auto",
+    explanationDepth: "intermediate",
+    targetAudience: "developer",
+  });
 
-    setIsLoading(true);
+  const handleExplain = async () => {
+    if (!code.trim()) return;
+
+    setLoading(true);
     setExplanation("");
 
+    const request: ExplanationRequest = {
+      code,
+      language: language as "english" | "bengali",
+      explanationStyle: explanationStyle as "detailed" | "concise" | "beginner",
+      includeExamples,
+    };
+
     try {
-      const result = await explainCode(code);
-      setExplanation(result);
-    } catch (error) {
-      console.error("Failed to explain code:", error);
-      setExplanation("Something went wrong. Please try again.");
+      const response = await fetch("/api/explain", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request),
+      });
+
+      const data: ExplanationResponse = await response.json();
+
+      if (data.explanation) {
+        setExplanation(data.explanation);
+      } else {
+        setExplanation(data.error || "Failed to generate explanation");
+      }
+    } catch {
+      setExplanation("Network error. Please try again.");
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
+  const canExplain = code.trim() && !loading;
+
+  const codeSnippets = [
+    {
+      title: "React useEffect",
+      code: `useEffect(() => {\n  document.title = \`You clicked \${count} times\`;\n}, [count]);`,
+      language: "javascript",
+    },
+    {
+      title: "Python Function",
+      code: `def fibonacci(n):\n    if n <= 1:\n        return n\n    return fibonacci(n-1) + fibonacci(n-2)`,
+      language: "python",
+    },
+  ];
+
+  const insertSnippet = (snippetCode: string) => {
+    setCode(snippetCode);
+  };
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col justify-center gap-10 px-6 py-12">
-        <header className="space-y-2 text-center md:text-left">
-          <h1 className="text-4xl font-semibold tracking-tight">
-            AI Code Explainer
-          </h1>
-          <p className="text-slate-400">
-            Paste any code snippet and receive a clear, human-friendly
-            explanation.
-          </p>
-        </header>
-
-        <form
-          onSubmit={handleSubmit}
-          className="flex flex-col gap-6 rounded-2xl bg-slate-900/60 p-6 shadow-lg ring-1 ring-slate-800"
-        >
-          <label className="flex flex-col gap-3 text-sm font-medium text-slate-300">
-            Code snippet
-            <textarea
-              value={code}
-              onChange={(event) => setCode(event.target.value)}
-              placeholder="Paste your code here..."
-              className="h-48 w-full resize-y rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 font-mono text-sm text-slate-100 shadow-inner outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-500/50"
-            />
-          </label>
-
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="inline-flex items-center justify-center rounded-xl bg-slate-100 px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:bg-slate-500/60 disabled:text-slate-300"
-          >
-            {isLoading ? "Explaining..." : "Explain Code"}
-          </button>
-        </form>
-
-        <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-lg">
-          <h2 className="text-lg font-semibold text-slate-200">Explanation</h2>
-          <div className="mt-4 min-h-40 whitespace-pre-wrap rounded-xl bg-slate-950/60 p-4 text-sm text-slate-200 ring-1 ring-slate-800">
-            {explanation || "Your explanation will appear here."}
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto py-8 px-4">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-4xl font-bold text-foreground">
+              AI Code Explainer
+            </h1>
+            <p className="text-muted-foreground mt-2">
+              Advanced code explanation powered by DeepSeek AI
+            </p>
+            <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
+              <span>By</span>
+              <a
+                href="https://github.com/maker-shihab"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-500 hover:underline"
+              >
+                Muhammad Shihab Uddin
+              </a>
+            </div>
           </div>
-        </section>
-      </main>
+          <ThemeToggle />
+        </div>
+
+        {/* Quick Start Snippets */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Quick Start Examples</CardTitle>
+            <CardDescription>
+              Try these code snippets to see how it works
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {codeSnippets.map((snippet, index) => (
+                <Button
+                  key={index}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => insertSnippet(snippet.code)}
+                >
+                  {snippet.title}
+                </Button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Advanced Filters */}
+        <AdvancedFilters
+          filters={filters}
+          onFiltersChange={setFilters}
+          explanationStyle={explanationStyle}
+          onExplanationStyleChange={setExplanationStyle}
+          includeExamples={includeExamples}
+          onIncludeExamplesChange={setIncludeExamples}
+        />
+
+        <div className="grid lg:grid-cols-2 gap-8 mt-6">
+          {/* Code Input Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Your Code</CardTitle>
+              <CardDescription>
+                Paste any code snippet you want to understand
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <textarea
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="// Paste your code here...\n// Or try one of the examples above"
+                className="w-full h-80 p-4 border border-input rounded-lg font-mono text-sm focus:ring-2 focus:ring-ring focus:border-transparent resize-none bg-background"
+                spellCheck="false"
+              />
+
+              <div className="flex gap-3">
+                <select
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                  className="px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent bg-background"
+                >
+                  <option value="english">English</option>
+                  <option value="bengali">বাংলা</option>
+                </select>
+
+                <Button
+                  onClick={handleExplain}
+                  disabled={!canExplain}
+                  className="flex-1"
+                  size="lg"
+                >
+                  {loading ? (
+                    <>
+                      <svg
+                        className="w-4 h-4 animate-spin mr-2"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                        />
+                      </svg>
+                      Analyzing Code...
+                    </>
+                  ) : (
+                    "Explain Code"
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Explanation Output Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle>AI Explanation</CardTitle>
+              <CardDescription>Powered by DeepSeek Coder AI</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="flex items-center justify-center h-80">
+                  <div className="text-center">
+                    <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-muted-foreground">
+                      AI is analyzing your code...
+                    </p>
+                  </div>
+                </div>
+              ) : explanation ? (
+                <div className="h-80 overflow-y-auto">
+                  <div className="whitespace-pre-wrap text-foreground leading-relaxed">
+                    {explanation}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-80 text-muted-foreground">
+                  <div className="text-center">
+                    <svg
+                      className="w-16 h-16 mx-auto mb-4 opacity-50"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1}
+                        d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                      />
+                    </svg>
+                    <p>Explanation will appear here</p>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Footer */}
+        <div className="mt-12 text-center text-muted-foreground text-sm">
+          <p>
+            Built with ❤️ by{" "}
+            <a
+              href="https://github.com/maker-shihab"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-500 hover:underline"
+            >
+              Muhammad Shihab Uddin
+            </a>{" "}
+            • Next.js • TypeScript • Tailwind CSS • Shadcn/ui
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
